@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
+import httpx
 
 router = APIRouter()
 
@@ -22,3 +23,16 @@ def receive_mock_bank_callback(request: ProviderCallbackRequest) -> dict[str, st
         "transaction_id": request.transaction_id,
         "status": "received",
     }
+
+@router.post("/process-payment-test")
+def process_payment_test(request: ProviderCallbackRequest) -> dict:
+    payload = request.model_dump()
+
+    response = httpx.post(
+        "http://mock-bank-service:8000/authorize",
+        json=payload,
+        timeout=5,
+    )
+    response.raise_for_status()
+
+    return response.json()
