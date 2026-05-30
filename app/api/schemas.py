@@ -2,7 +2,7 @@ from pydantic import BaseModel
 
 
 class PaymentRequest(BaseModel):
-    tracking_id: str
+    tracking_id: str | None = None
     amount: float
     currency: str
     country: str

@@ -2,7 +2,7 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    mock_bank_base_url: str = "http://localhost:8001"
+    mock_bank_base_url: str = "http://localhost:8000"
 
     class Config:
         env_file = ".env"
