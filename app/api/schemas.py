@@ -7,13 +7,15 @@ class PaymentRequest(BaseModel):
     currency: str
     country: str
 
+
 class CustomerRequest(BaseModel):
     first_name: str
     last_name: str
     personal_id: str
     email: str
     country: str
-    #ip: str
+    # ip: str
+
 
 class ProviderCallbackRequest(BaseModel):
     transaction_id: str
@@ -31,7 +33,9 @@ class CallbackResponse(BaseModel):
     status: str
 
 
-class BankAuthorizationRequest(BaseModel): #evolution of PaymentRequest for the bank authorization endpoint
+class BankAuthorizationRequest(
+    BaseModel
+):  # evolution of PaymentRequest for the bank authorization endpoint
     transaction_id: str
     amount: float
     currency: str

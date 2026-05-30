@@ -16,12 +16,12 @@ class Transaction:
     id: UUID
 
     tracking_id: str | None
-    #payment_method: str | None
+    # payment_method: str | None
 
     notification_url: str | None
 
     amount: float
-    #currency: str
+    # currency: str
     status: PaymentStatus
 
     customer: Customer
