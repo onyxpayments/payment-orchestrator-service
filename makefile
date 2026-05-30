@@ -13,3 +13,6 @@ lint:
 
 test:
 	.venv/bin/pytest -vv
+
+docker-build:
+	docker build -t payment-orchestrator-service .
