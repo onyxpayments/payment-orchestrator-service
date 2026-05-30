@@ -1,23 +1,9 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
 import httpx
+from . import schemas
 
 router = APIRouter()
-
-
-class ProviderCallbackRequest(BaseModel):
-    transaction_id: str
-    provider_transaction_id: str
-    status: str
-    message: str
-
-
-class PaymentRequest(BaseModel):
-    transaction_id: str
-    amount: float
-    currency: str
-    country: str
-
 
 @router.get("/health")
 def health() -> dict[str, str]:
@@ -25,7 +11,7 @@ def health() -> dict[str, str]:
 
 
 @router.post("/provider-callbacks/mock-bank")
-def receive_mock_bank_callback(request: ProviderCallbackRequest) -> dict[str, str]:
+def receive_mock_bank_callback(request: schemas.ProviderCallbackRequest) -> dict[str, str]:
     return {
         "transaction_id": request.transaction_id,
         "status": "received",
@@ -33,7 +19,7 @@ def receive_mock_bank_callback(request: ProviderCallbackRequest) -> dict[str, st
 
 
 @router.post("/process-payment-test")
-def process_payment_test(request: PaymentRequest) -> dict:
+def process_payment_test(request: schemas.PaymentRequest) -> dict:
     payload = request.model_dump()
 
     response = httpx.post(

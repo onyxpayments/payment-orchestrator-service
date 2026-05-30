@@ -2,7 +2,7 @@ from pydantic import BaseModel
 
 
 class PaymentRequest(BaseModel):
-    transaction_id: str
+    tracking_id: str
     amount: float
     currency: str
     country: str
@@ -22,3 +22,11 @@ class HealthResponse(BaseModel):
 class CallbackResponse(BaseModel):
     transaction_id: str
     status: str
+
+class BankAuthorizationRequest(BaseModel):
+    transaction_id: str
+    amount: float
+    currency: str
+
+    customer_name: str
+    customer_document: str
