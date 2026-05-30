@@ -5,13 +5,16 @@ from . import schemas
 
 router = APIRouter()
 
+
 @router.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
 @router.post("/provider-callbacks/mock-bank")
-def receive_mock_bank_callback(request: schemas.ProviderCallbackRequest) -> dict[str, str]:
+def receive_mock_bank_callback(
+    request: schemas.ProviderCallbackRequest,
+) -> dict[str, str]:
     return {
         "transaction_id": request.transaction_id,
         "status": "received",

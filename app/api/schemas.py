@@ -23,6 +23,7 @@ class CallbackResponse(BaseModel):
     transaction_id: str
     status: str
 
+
 class BankAuthorizationRequest(BaseModel):
     transaction_id: str
     amount: float

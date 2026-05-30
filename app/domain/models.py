@@ -2,12 +2,14 @@ from dataclasses import dataclass
 from uuid import UUID
 from enum import Enum
 
+
 class PaymentStatus(str, Enum):
     PENDING = "PENDING"
     APPROVED = "APPROVED"
     DECLINED = "DECLINED"
     ERROR = "ERROR"
     EXPIRED = "EXPIRED"
+
 
 @dataclass
 class Transaction:
@@ -23,6 +25,7 @@ class Transaction:
     status: PaymentStatus
 
     customer: Customer
+
 
 @dataclass
 class Customer:
