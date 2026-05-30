@@ -15,3 +15,5 @@ httpx
 black
 flake8
 pylint
+
+psycopg[binary]
