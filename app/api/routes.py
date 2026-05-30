@@ -24,6 +24,7 @@ def receive_mock_bank_callback(request: ProviderCallbackRequest) -> dict[str, st
         "status": "received",
     }
 
+
 @router.post("/process-payment-test")
 def process_payment_test(request: ProviderCallbackRequest) -> dict:
     payload = request.model_dump()
