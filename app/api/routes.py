@@ -11,6 +11,11 @@ class ProviderCallbackRequest(BaseModel):
     status: str
     message: str
 
+class PaymentRequest(BaseModel):
+    transaction_id: str
+    amount: float
+    currency: str
+    country: str
 
 @router.get("/health")
 def health() -> dict[str, str]:
@@ -26,7 +31,7 @@ def receive_mock_bank_callback(request: ProviderCallbackRequest) -> dict[str, st
 
 
 @router.post("/process-payment-test")
-def process_payment_test(request: ProviderCallbackRequest) -> dict:
+def process_payment_test(request: PaymentRequest) -> dict:
     payload = request.model_dump()
 
     response = httpx.post(
