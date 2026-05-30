@@ -11,11 +11,13 @@ class ProviderCallbackRequest(BaseModel):
     status: str
     message: str
 
+
 class PaymentRequest(BaseModel):
     transaction_id: str
     amount: float
     currency: str
     country: str
+
 
 @router.get("/health")
 def health() -> dict[str, str]:
