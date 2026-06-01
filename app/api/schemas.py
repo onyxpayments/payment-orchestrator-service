@@ -1,11 +1,13 @@
 from pydantic import BaseModel
+from app.domain.models import Customer
 
 
-class PaymentRequest(BaseModel):
+class BankAuthorizationRequest(BaseModel):
     transaction_id: str
     amount: float
     currency: str
-    country: str
+
+    customer: Customer
 
 
 class CustomerRequest(BaseModel):
@@ -31,14 +33,3 @@ class HealthResponse(BaseModel):
 class CallbackResponse(BaseModel):
     transaction_id: str
     status: str
-
-
-class BankAuthorizationRequest(
-    BaseModel
-):  # evolution of PaymentRequest for the bank authorization endpoint
-    transaction_id: str
-    amount: float
-    currency: str
-
-    customer_name: str
-    customer_document: str

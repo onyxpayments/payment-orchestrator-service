@@ -32,6 +32,6 @@ class Customer:
     first_name: str
     last_name: str
     personal_id: str
-    email: str
-    country: str
-    ip: str
+    # email: str
+    # country: str
+    # ip: str

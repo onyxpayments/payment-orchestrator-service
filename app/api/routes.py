@@ -26,7 +26,7 @@ def receive_mock_bank_callback(
 
 
 @router.post("/process-payment-test")
-def process_payment_test(request: schemas.PaymentRequest) -> dict:
+def process_payment_test(request: schemas.BankAuthorizationRequest) -> dict:
     payload = request.model_dump()
 
     response = httpx.post(
@@ -40,7 +40,7 @@ def process_payment_test(request: schemas.PaymentRequest) -> dict:
 
 
 @router.post("/transactions")
-def create_transaction(request: schemas.CreateTransactionRequest):
+def create_transaction(request: schemas.BankAuthorizationRequest):
     repository = PostgresTransactionRepository()
     use_case = CreateTransactionUseCase(repository)
 
