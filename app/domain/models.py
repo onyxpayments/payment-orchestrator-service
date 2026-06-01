@@ -23,15 +23,10 @@ class Customer:
 
 @dataclass
 class Transaction:
-    id: UUID
-
-    tracking_id: str | None
-    # payment_method: str | None
-
-    notification_url: str | None
-
+    id: UUID | None
     amount: float
-    # currency: str
     status: PaymentStatus
-
     customer: Customer
+
+    tracking_id: str | None = None
+    notification_url: str | None = None

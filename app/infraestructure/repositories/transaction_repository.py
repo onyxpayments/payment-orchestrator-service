@@ -30,9 +30,9 @@ class PostgresTransactionRepository:
             "customer_first_name": transaction.customer.first_name,
             "customer_last_name": transaction.customer.last_name,
             "customer_personal_id": transaction.customer.personal_id,
-            "customer_email": transaction.customer.email,
-            "customer_country": transaction.customer.country,
-            "customer_ip": transaction.customer.ip,
+            # "customer_email": transaction.customer.email,
+            # "customer_country": transaction.customer.country,
+            # "customer_ip": transaction.customer.ip,
         }
 
         with get_connection() as conn:
