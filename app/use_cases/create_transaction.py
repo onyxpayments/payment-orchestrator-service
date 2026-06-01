@@ -17,8 +17,8 @@ class CreateTransactionUseCase:
 
         transaction = Transaction(
             id=None,
-            tracking_id=request.tracking_id,
-            notification_url=request.notification_url,
+            # tracking_id=request.tracking_id,
+            # notification_url=request.notification_url,
             amount=request.amount,
             customer=customer,
             status=PaymentStatus.PENDING,
