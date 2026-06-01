@@ -1,11 +1,12 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 import httpx
 from . import schemas
 from app.infraestructure.repositories.transaction_repository import (
     PostgresTransactionRepository,
 )
-from app.application.use_cases.create_transaction import CreateTransactionUseCase
+from app.api.dependencies import get_create_transaction_use_case
+from app.use_cases.create_transaction import CreateTransactionUseCase
 
 router = APIRouter()
 
@@ -40,8 +41,8 @@ def process_payment_test(request: schemas.BankAuthorizationRequest) -> dict:
 
 
 @router.post("/transactions")
-def create_transaction(request: schemas.BankAuthorizationRequest):
-    repository = PostgresTransactionRepository()
-    use_case = CreateTransactionUseCase(repository)
-
+def create_transaction(
+    request: schemas.BankAuthorizationRequest,
+    use_case: CreateTransactionUseCase = Depends(get_create_transaction_use_case),
+):
     return use_case.execute(request)
