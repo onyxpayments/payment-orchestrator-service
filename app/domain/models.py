@@ -12,6 +12,16 @@ class PaymentStatus(str, Enum):
 
 
 @dataclass
+class Customer:
+    first_name: str
+    last_name: str
+    personal_id: str
+    # email: str
+    # country: str
+    # ip: str
+
+
+@dataclass
 class Transaction:
     id: UUID
 
@@ -25,13 +35,3 @@ class Transaction:
     status: PaymentStatus
 
     customer: Customer
-
-
-@dataclass
-class Customer:
-    first_name: str
-    last_name: str
-    personal_id: str
-    # email: str
-    # country: str
-    # ip: str
