@@ -10,9 +10,9 @@ class CreateTransactionUseCase:
             first_name=request.customer.first_name,
             last_name=request.customer.last_name,
             personal_id=request.customer.personal_id,
-            email=request.customer.email,
-            country=request.customer.country,
-            ip=request.customer.ip,
+            # email=request.customer.email,
+            # country=request.customer.country,
+            # ip=request.customer.ip,
         )
 
         transaction = Transaction(
