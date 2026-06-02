@@ -1,22 +1,23 @@
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.api.dependencies import get_create_transaction_use_case
+from app.api.dependencies import get_process_transaction_use_case
 
 client = TestClient(app)
 
 
-class FakeCreateTransactionUseCase:
+class FakeProcessTransactionUseCase:
     def execute(self, request):
         return {
-            "transaction_id": request.transaction_id,
-            "status": "PENDING",
+            "transaction_id": "fake-uuid-123",
+            "status": "APPROVED",
+            "provider_transaction_id": "mock_trx_123",
         }
 
 
-def test_create_transaction_returns_pending():
-    app.dependency_overrides[get_create_transaction_use_case] = (
-        lambda: FakeCreateTransactionUseCase()
+def test_create_transaction_returns_approved():
+    app.dependency_overrides[get_process_transaction_use_case] = (
+        lambda: FakeProcessTransactionUseCase()
     )
 
     payload = {
@@ -34,8 +35,9 @@ def test_create_transaction_returns_pending():
 
     assert response.status_code == 200
     assert response.json() == {
-        "transaction_id": "trx_123",
-        "status": "PENDING",
+        "transaction_id": "fake-uuid-123",
+        "status": "APPROVED",
+        "provider_transaction_id": "mock_trx_123",
     }
 
     app.dependency_overrides.clear()
