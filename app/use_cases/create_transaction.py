@@ -29,12 +29,12 @@ class ProcessTransactionUseCase:
         bank_response = self.bank_gateway.authorize(request)
 
         self.transaction_repository.update_status(
-            transaction_id=saved_transaction.id,
-            status=PaymentStatus(bank_response["status"]),
+            transaction_id=saved_transaction["id"],
+            status=PaymentStatus(bank_response["status"]).value,
         )
 
         return {
-            "transaction_id": str(saved_transaction.id),
+            "transaction_id": str(saved_transaction["id"]),
             "status": bank_response["status"],
             "provider_transaction_id": bank_response["provider_transaction_id"],
         }
