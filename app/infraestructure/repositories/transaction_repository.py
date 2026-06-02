@@ -42,3 +42,22 @@ class PostgresTransactionRepository:
                 conn.commit()
 
         return result
+
+    def update_status(self, transaction_id: str, status: str):
+        with get_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    """
+                    UPDATE transactions
+                    SET status = %s,
+                        updated_at = NOW()
+                    WHERE id = %s
+                    RETURNING id, status;
+                    """,
+                    (status, transaction_id),
+                )
+
+                row = cursor.fetchone()
+                conn.commit()
+
+                return row
