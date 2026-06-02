@@ -2,7 +2,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    bank_service_url: str = "http://localhost:8001"
+    bank_service_url: str = "http://localhost:8000"
     database_url: str = "postgresql://test:test@localhost:5432/test_db"
 
     model_config = SettingsConfigDict(
