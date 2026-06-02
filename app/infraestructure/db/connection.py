@@ -5,4 +5,4 @@ from config.settings import settings
 
 
 def get_connection():
-    return psycopg.connect(settings.DATABASE_URL, row_factory=dict_row)
+    return psycopg.connect(settings.database_url, row_factory=dict_row)
