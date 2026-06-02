@@ -5,8 +5,8 @@ from . import schemas
 from app.infraestructure.repositories.transaction_repository import (
     PostgresTransactionRepository,
 )
-from app.api.dependencies import get_create_transaction_use_case
-from app.use_cases.create_transaction import CreateTransactionUseCase
+from app.api.dependencies import get_process_transaction_use_case
+from app.use_cases.create_transaction import ProcessTransactionUseCase
 
 router = APIRouter()
 
@@ -43,6 +43,6 @@ def process_payment_test(request: schemas.BankAuthorizationRequest) -> dict:
 @router.post("/transactions")
 def create_transaction(
     request: schemas.BankAuthorizationRequest,
-    use_case: CreateTransactionUseCase = Depends(get_create_transaction_use_case),
+    use_case: ProcessTransactionUseCase = Depends(get_process_transaction_use_case),
 ):
     return use_case.execute(request)

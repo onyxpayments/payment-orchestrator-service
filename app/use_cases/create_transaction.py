@@ -1,9 +1,10 @@
 from app.domain.models import Customer, Transaction, PaymentStatus
 
 
-class CreateTransactionUseCase:
-    def __init__(self, transaction_repository):
+class ProcessTransactionUseCase:
+    def __init__(self, transaction_repository, bank_gateway):
         self.transaction_repository = transaction_repository
+        self.bank_gateway = bank_gateway
 
     def execute(self, request):
         customer = Customer(
@@ -23,5 +24,17 @@ class CreateTransactionUseCase:
             customer=customer,
             status=PaymentStatus.PENDING,
         )
+        saved_transaction = self.transaction_repository.save(transaction)
 
-        return self.transaction_repository.save(transaction)
+        bank_response = self.bank_gateway.authorize(request)
+
+        self.transaction_repository.update_status(
+            transaction_id=saved_transaction.id,
+            status=PaymentStatus(bank_response["status"]),
+        )
+
+        return {
+            "transaction_id": str(saved_transaction.id),
+            "status": bank_response["status"],
+            "provider_transaction_id": bank_response["provider_transaction_id"],
+        }
