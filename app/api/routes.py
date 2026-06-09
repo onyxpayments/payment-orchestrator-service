@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel
 import httpx
 from . import schemas
 from app.api.dependencies import (
@@ -9,8 +8,6 @@ from app.api.dependencies import (
 from app.use_cases.create_transaction import ProcessTransactionUseCase
 from app.use_cases.receive_callback import ProcessProviderCallbackUseCase
 from uuid import UUID
-from app.infraestructure.gateways.mock_bank_gateway import MockBankGateway
-from app.domain.models import PaymentStatus
 
 router = APIRouter()
 
