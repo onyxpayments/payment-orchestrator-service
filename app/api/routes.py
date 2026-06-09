@@ -7,6 +7,10 @@ from app.infraestructure.repositories.transaction_repository import (
 )
 from app.api.dependencies import get_process_transaction_use_case
 from app.use_cases.create_transaction import ProcessTransactionUseCase
+from uuid import UUID
+from app.infraestructure.gateways.mock_bank_gateway import MockBankGateway
+from domain.models import PaymentStatus
+
 
 router = APIRouter()
 
@@ -16,14 +20,17 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-@router.post("/provider-callbacks/mock-bank")
+@router.post("/provider-callbacks/mock-bank/{transaction_id}")
 def receive_mock_bank_callback(
-    request: schemas.ProviderCallbackRequest,
-) -> dict[str, str]:
-    return {
-        "transaction_id": request.transaction_id,
-        "status": "received",
-    }
+    transaction_id: UUID,
+    callback: schemas.ProviderCallbackRequest,
+):
+    PostgresTransactionRepository.update_status(
+        transaction_id=transaction_id,
+        status=PaymentStatus(callback.status),
+    )
+
+    return {"message": "Callback received"}
 
 
 @router.post("/process-payment-test")
