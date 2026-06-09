@@ -27,7 +27,7 @@ class ProcessTransactionUseCase:
         saved_transaction = self.transaction_repository.save(transaction)
 
         bank_response = self.bank_gateway.authorize(
-            transaction_id=saved_transaction.id,
+            transaction_id=saved_transaction["id"],
             amount=request.amount,
             currency=request.currency,
             customer=request.customer,
