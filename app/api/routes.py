@@ -2,15 +2,15 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 import httpx
 from . import schemas
-from app.infraestructure.repositories.transaction_repository import (
-    PostgresTransactionRepository,
+from app.api.dependencies import (
+    get_process_transaction_use_case,
+    get_process_provider_callback_use_case,
 )
-from app.api.dependencies import get_process_transaction_use_case
 from app.use_cases.create_transaction import ProcessTransactionUseCase
+from app.use_cases.receive_callback import ProcessProviderCallbackUseCase
 from uuid import UUID
 from app.infraestructure.gateways.mock_bank_gateway import MockBankGateway
-from domain.models import PaymentStatus
-
+from app.domain.models import PaymentStatus
 
 router = APIRouter()
 
@@ -24,13 +24,11 @@ def health() -> dict[str, str]:
 def receive_mock_bank_callback(
     transaction_id: UUID,
     callback: schemas.ProviderCallbackRequest,
+    use_case: ProcessProviderCallbackUseCase = Depends(
+        get_process_provider_callback_use_case
+    ),
 ):
-    PostgresTransactionRepository.update_status(
-        transaction_id=transaction_id,
-        status=PaymentStatus(callback.status),
-    )
-
-    return {"message": "Callback received"}
+    return use_case.execute(transaction_id, callback)
 
 
 @router.post("/process-payment-test")
