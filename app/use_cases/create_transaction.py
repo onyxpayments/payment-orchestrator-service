@@ -26,12 +26,11 @@ class ProcessTransactionUseCase:
         )
         saved_transaction = self.transaction_repository.save(transaction)
 
-        bank_response = self.bank_gateway.authorize(
-            transaction_id=saved_transaction["id"],
-            amount=request.amount,
-            currency=request.currency,
-            customer=request.customer,
+        bank_request = request.model_copy(
+            update={"transaction_id": str(saved_transaction["id"])}
         )
+
+        bank_response = self.bank_gateway.authorize(bank_request)
 
         self.transaction_repository.update_status(
             transaction_id=saved_transaction["id"],
