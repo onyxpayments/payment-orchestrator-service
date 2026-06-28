@@ -1,8 +1,8 @@
 from app.infraestructure.repositories.transaction_repository import (
     PostgresTransactionRepository,
 )
-from app.use_cases.create_transaction import ProcessTransactionUseCase
-from app.use_cases.receive_callback import ProcessProviderCallbackUseCase
+from app.application.use_cases.create_transaction import ProcessTransactionUseCase
+from app.application.use_cases.receive_callback import ProcessProviderCallbackUseCase
 from app.infraestructure.gateways.mock_bank_gateway import MockBankGateway
 
 

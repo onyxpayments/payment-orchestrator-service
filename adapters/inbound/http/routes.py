@@ -5,8 +5,8 @@ from app.api.dependencies import (
     get_process_transaction_use_case,
     get_process_provider_callback_use_case,
 )
-from app.use_cases.create_transaction import ProcessTransactionUseCase
-from app.use_cases.receive_callback import ProcessProviderCallbackUseCase
+from app.application.use_cases.create_transaction import ProcessTransactionUseCase
+from app.application.use_cases.receive_callback import ProcessProviderCallbackUseCase
 from uuid import UUID
 
 router = APIRouter()
