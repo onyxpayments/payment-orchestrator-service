@@ -1,10 +1,49 @@
-from app.infraestructure.db.connection import get_connection
+from uuid import UUID
+
+from app.domain.models import Customer, PaymentStatus, Transaction
 
 
 class PostgresTransactionRepository:
-    def save(self, transaction):
+    def __init__(self, connection):
+        self.connection = connection
+
+    def get(self, transaction_id: UUID) -> Transaction | None:
+        with self.connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT
+                    id,
+                    amount,
+                    status,
+                    customer_first_name,
+                    customer_last_name,
+                    customer_personal_id
+                FROM transactions
+                WHERE id = %s;
+                """,
+                (transaction_id,),
+            )
+            row = cursor.fetchone()
+
+        if row is None:
+            return None
+
+        return Transaction(
+            id=row["id"],
+            amount=row["amount"],
+            currency=None,
+            status=PaymentStatus(row["status"]),
+            customer=Customer(
+                first_name=row["customer_first_name"],
+                last_name=row["customer_last_name"],
+                personal_id=row["customer_personal_id"],
+            ),
+        )
+
+    def add(self, transaction: Transaction) -> None:
         query = """
             INSERT INTO transactions (
+                id,
                 amount,
                 status,
                 customer_first_name,
@@ -12,52 +51,35 @@ class PostgresTransactionRepository:
                 customer_personal_id
             )
             VALUES (
+                %(id)s,
                 %(amount)s,
                 %(status)s,
                 %(customer_first_name)s,
                 %(customer_last_name)s,
                 %(customer_personal_id)s
-
-            )
-            RETURNING id, tracking_id, amount, status;
+            );
         """
 
         params = {
-            # "tracking_id": transaction.tracking_id,
-            # "notification_url": transaction.notification_url,
+            "id": transaction.id,
             "amount": transaction.amount,
             "status": transaction.status.value,
             "customer_first_name": transaction.customer.first_name,
             "customer_last_name": transaction.customer.last_name,
             "customer_personal_id": transaction.customer.personal_id,
-            # "customer_email": transaction.customer.email,
-            # "customer_country": transaction.customer.country,
-            # "customer_ip": transaction.customer.ip,
         }
 
-        with get_connection() as conn:
-            with conn.cursor() as cur:
-                cur.execute(query, params)
-                result = cur.fetchone()
-                conn.commit()
+        with self.connection.cursor() as cursor:
+            cursor.execute(query, params)
 
-        return result
-
-    def update_status(self, transaction_id: str, status: str):
-        with get_connection() as conn:
-            with conn.cursor() as cursor:
-                cursor.execute(
-                    """
-                    UPDATE transactions
-                    SET status = %s,
-                        updated_at = NOW()
-                    WHERE id = %s
-                    RETURNING id, status;
-                    """,
-                    (status, transaction_id),
-                )
-
-                row = cursor.fetchone()
-                conn.commit()
-
-                return row
+    def update(self, transaction: Transaction) -> None:
+        with self.connection.cursor() as cursor:
+            cursor.execute(
+                """
+                UPDATE transactions
+                SET status = %s,
+                    updated_at = NOW()
+                WHERE id = %s;
+                """,
+                (transaction.status.value, transaction.id),
+            )

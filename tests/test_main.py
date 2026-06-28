@@ -1,35 +1,44 @@
 from fastapi.testclient import TestClient
-from app.main import app
-from app.api.dependencies import (
-    get_process_transaction_use_case,
+
+from app.application.results import (
+    ProcessPaymentResult,
+    ProcessProviderCallbackResult,
+)
+from app.bootstrap import (
+    get_process_payment_use_case,
     get_process_provider_callback_use_case,
 )
+from app.domain.models import PaymentStatus
+from app.main import app
 
 client = TestClient(app)
 
 
-class FakeProcessTransactionUseCase:
-    def execute(self, request):
-        return {
-            "message": "Transaction processed",
-            "transaction_id": "fake-uuid-123",
-            "status": "APPROVED",
-            "provider_transaction_id": "mock_trx_123",
-        }
+class FakeProcessPaymentUseCase:
+    def execute(self, command):
+        return ProcessPaymentResult(
+            transaction_id=command.payment_id,
+            status=PaymentStatus.APPROVED,
+            provider_transaction_id=f"mock_{command.payment_id}",
+        )
 
 
 class FakeProcessProviderCallbackUseCase:
-    def execute(self, transaction_id, callback):
-        return {"message": "Callback received"}
+    def execute(self, command):
+        return ProcessProviderCallbackResult(
+            transaction_id=command.transaction_id,
+            status=PaymentStatus(command.status),
+        )
 
 
 def test_create_transaction_returns_approved():
-    app.dependency_overrides[get_process_transaction_use_case] = (
-        lambda: FakeProcessTransactionUseCase()
+    app.dependency_overrides[get_process_payment_use_case] = (
+        lambda: FakeProcessPaymentUseCase()
     )
 
+    transaction_id = "123e4567-e89b-12d3-a456-426614174000"
     payload = {
-        "transaction_id": "trx_123",
+        "transaction_id": transaction_id,
         "amount": 10000,
         "currency": "COP",
         "customer": {
@@ -43,10 +52,9 @@ def test_create_transaction_returns_approved():
 
     assert response.status_code == 200
     assert response.json() == {
-        "transaction_id": "fake-uuid-123",
+        "transaction_id": transaction_id,
         "status": "APPROVED",
-        "provider_transaction_id": "mock_trx_123",
-        "message": "Transaction processed",
+        "provider_transaction_id": f"mock_{transaction_id}",
     }
 
     app.dependency_overrides.clear()
@@ -67,7 +75,6 @@ def test_mock_bank_callback_returns_received():
     transaction_id = "123e4567-e89b-12d3-a456-426614174000"
 
     payload = {
-        "transaction_id": transaction_id,
         "provider_transaction_id": f"mock_{transaction_id}",
         "status": "APPROVED",
         "message": "Payment approved by mock bank",
@@ -80,7 +87,8 @@ def test_mock_bank_callback_returns_received():
 
     assert response.status_code == 200
     assert response.json() == {
-        "message": "Callback received",
+        "transaction_id": transaction_id,
+        "status": "APPROVED",
     }
 
     app.dependency_overrides.clear()
@@ -89,7 +97,6 @@ def test_mock_bank_callback_returns_received():
 def test_mock_bank_callback_rejects_missing_required_field():
     transaction_id = "123e4567-e89b-12d3-a456-426614174000"
     payload = {
-        "provider_transaction_id": f"mock_{transaction_id}",
         "status": "APPROVED",
         "message": "Payment approved by mock bank",
     }

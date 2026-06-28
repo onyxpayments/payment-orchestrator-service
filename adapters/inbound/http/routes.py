@@ -1,23 +1,67 @@
-from fastapi import APIRouter, Depends
-import httpx
-from . import schemas
-from app.api.dependencies import (
-    get_process_transaction_use_case,
+from uuid import UUID, uuid4
+
+from fastapi import APIRouter, Depends, status
+
+from adapters.inbound.http import schemas
+from app.bootstrap import (
+    get_process_payment_use_case,
     get_process_provider_callback_use_case,
 )
-from app.application.use_cases.create_transaction import ProcessTransactionUseCase
-from app.application.use_cases.receive_callback import ProcessProviderCallbackUseCase
-from uuid import UUID
+from app.application.commands import (
+    ProcessPaymentCommand,
+    ProcessProviderCallbackCommand,
+)
+from app.application.use_cases.process_payment import ProcessPaymentUseCase
+from app.application.use_cases.process_provider_callback import (
+    ProcessProviderCallbackUseCase,
+)
+from app.domain.models import Customer
 
 router = APIRouter()
 
 
-@router.get("/health")
-def health() -> dict[str, str]:
-    return {"status": "ok"}
+@router.get(
+    "/health",
+    response_model=schemas.HealthResponse,
+)
+def health() -> schemas.HealthResponse:
+    return schemas.HealthResponse(status="ok")
 
 
-@router.post("/provider-callbacks/mock-bank/{transaction_id}")
+@router.post(
+    "/transactions",
+    response_model=schemas.TransactionResponse,
+    status_code=status.HTTP_200_OK,
+)
+def create_transaction(
+    request: schemas.BankAuthorizationRequest,
+    use_case: ProcessPaymentUseCase = Depends(get_process_payment_use_case),
+):
+    command = ProcessPaymentCommand(
+        event_id=uuid4(),
+        payment_id=request.transaction_id,
+        amount=request.amount,
+        currency=request.currency,
+        customer=Customer(
+            first_name=request.customer.first_name,
+            last_name=request.customer.last_name,
+            personal_id=request.customer.personal_id,
+        ),
+    )
+
+    result = use_case.execute(command)
+
+    return schemas.TransactionResponse(
+        transaction_id=result.transaction_id,
+        provider_transaction_id=result.provider_transaction_id,
+        status=result.status.value,
+    )
+
+
+@router.post(
+    "/provider-callbacks/mock-bank/{transaction_id}",
+    response_model=schemas.CallbackResponse,
+)
 def receive_mock_bank_callback(
     transaction_id: UUID,
     callback: schemas.ProviderCallbackRequest,
@@ -25,26 +69,16 @@ def receive_mock_bank_callback(
         get_process_provider_callback_use_case
     ),
 ):
-    return use_case.execute(transaction_id, callback)
-
-
-@router.post("/process-payment-test")
-def process_payment_test(request: schemas.BankAuthorizationRequest) -> dict:
-    payload = request.model_dump()
-
-    response = httpx.post(
-        "http://mock-bank-service:8000/authorize",
-        json=payload,
-        timeout=5,
+    command = ProcessProviderCallbackCommand(
+        transaction_id=transaction_id,
+        provider_transaction_id=callback.provider_transaction_id,
+        status=callback.status,
+        message=callback.message,
     )
-    response.raise_for_status()
 
-    return response.json()
+    result = use_case.execute(command)
 
-
-@router.post("/transactions")
-def create_transaction(
-    request: schemas.BankAuthorizationRequest,
-    use_case: ProcessTransactionUseCase = Depends(get_process_transaction_use_case),
-):
-    return use_case.execute(request)
+    return schemas.CallbackResponse(
+        transaction_id=result.transaction_id,
+        status=result.status.value,
+    )

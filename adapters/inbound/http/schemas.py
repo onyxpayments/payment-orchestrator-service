@@ -1,35 +1,47 @@
-from pydantic import BaseModel
-from app.domain.models import Customer
+from decimal import Decimal
+from uuid import UUID
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
-class BankAuthorizationRequest(BaseModel):
-    transaction_id: str
-    amount: float
-    currency: str
-
-    customer: Customer
+class ApiSchema(BaseModel):
+    model_config = ConfigDict(extra="forbid")
 
 
-class CustomerRequest(BaseModel):
-    first_name: str
-    last_name: str
-    personal_id: str
-    email: str
-    country: str
-    # ip: str
+class CustomerRequest(ApiSchema):
+    first_name: str = Field(min_length=1, max_length=100)
+    last_name: str = Field(min_length=1, max_length=100)
+    personal_id: str = Field(min_length=1, max_length=50)
 
 
-class ProviderCallbackRequest(BaseModel):
-    transaction_id: str
-    provider_transaction_id: str
+class BankAuthorizationRequest(ApiSchema):
+    transaction_id: UUID
+    amount: Decimal = Field(gt=0)
+    currency: str = Field(min_length=3, max_length=3)
+    customer: CustomerRequest
+
+    @field_validator("currency")
+    @classmethod
+    def normalize_currency(cls, value: str) -> str:
+        return value.upper()
+
+
+class ProviderCallbackRequest(ApiSchema):
+    provider_transaction_id: str = Field(min_length=1)
+    status: str = Field(min_length=1)
+    message: str | None = None
+
+
+class TransactionResponse(ApiSchema):
+    transaction_id: UUID
+    provider_transaction_id: str | None = None
     status: str
-    message: str
 
 
-class HealthResponse(BaseModel):
+class CallbackResponse(ApiSchema):
+    transaction_id: UUID
     status: str
 
 
-class CallbackResponse(BaseModel):
-    transaction_id: str
+class HealthResponse(ApiSchema):
     status: str

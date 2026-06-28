@@ -12,3 +12,11 @@ class ProcessPaymentCommand:
     amount: Decimal
     currency: str
     customer: Customer
+
+
+@dataclass(frozen=True)
+class ProcessProviderCallbackCommand:
+    transaction_id: UUID
+    provider_transaction_id: str
+    status: str
+    message: str | None = None
