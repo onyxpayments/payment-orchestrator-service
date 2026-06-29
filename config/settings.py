@@ -1,14 +1,14 @@
-from pydantic import Field
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    database_url: str
+    database_url: SecretStr = Field(min_length=1)
     bank_service_url: str
     rabbitmq_host: str = "rabbitmq"
     rabbitmq_port: int = Field(default=5672, ge=1, le=65535)
     rabbitmq_user: str = "guest"
-    rabbitmq_password: str = "guest"
+    rabbitmq_password: SecretStr = Field(min_length=1)
     rabbitmq_vhost: str = "/"
     rabbitmq_exchange: str = "payment.events"
     rabbitmq_payment_requested_queue: str = "orchestrator.payment-requested.q"

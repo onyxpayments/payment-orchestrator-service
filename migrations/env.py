@@ -1,12 +1,13 @@
 from logging.config import fileConfig
 
 from alembic import context
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import engine_from_config, pool
 
 
 class MigrationSettings(BaseSettings):
-    database_url: str
+    database_url: SecretStr
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -20,7 +21,7 @@ settings = MigrationSettings()
 config = context.config
 config.set_main_option(
     "sqlalchemy.url",
-    settings.database_url.replace("%", "%%"),
+    settings.database_url.get_secret_value().replace("%", "%%"),
 )
 
 if config.config_file_name is not None:

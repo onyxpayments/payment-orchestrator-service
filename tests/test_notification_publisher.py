@@ -15,6 +15,7 @@ def create_settings() -> Settings:
         _env_file=None,
         database_url="postgresql://test",
         bank_service_url="http://bank",
+        rabbitmq_password="test-secret",
     )
 
 

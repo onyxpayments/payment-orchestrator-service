@@ -26,6 +26,7 @@ def create_settings(**overrides):
     values = {
         "database_url": "postgresql://test",
         "bank_service_url": "http://bank",
+        "rabbitmq_password": "test-secret",
         "rabbitmq_max_retries": 3,
     }
     values.update(overrides)

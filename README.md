@@ -188,15 +188,19 @@ TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5433/transactions_db 
 
 ## Configuration
 
-`DATABASE_URL` and `BANK_SERVICE_URL` are required. All other values have
-defaults.
+`DATABASE_URL`, `BANK_SERVICE_URL`, and `RABBITMQ_PASSWORD` are required.
+Database and broker passwords are represented as Pydantic secret values so
+they are masked in settings representations and logs.
+
+Copy `.env.example` to `.env` for local development and replace every
+`change-me` value. Never commit the resulting `.env` file.
 
 | Variable | Default |
 | --- | --- |
 | `RABBITMQ_HOST` | `rabbitmq` |
 | `RABBITMQ_PORT` | `5672` |
 | `RABBITMQ_USER` | `guest` |
-| `RABBITMQ_PASSWORD` | `guest` |
+| `RABBITMQ_PASSWORD` | required secret |
 | `RABBITMQ_VHOST` | `/` |
 | `RABBITMQ_EXCHANGE` | `payment.events` |
 | `RABBITMQ_PAYMENT_REQUESTED_QUEUE` | `orchestrator.payment-requested.q` |

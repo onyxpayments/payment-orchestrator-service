@@ -6,7 +6,7 @@ from config.settings import Settings
 def connection_parameters(settings: Settings) -> pika.ConnectionParameters:
     credentials = pika.PlainCredentials(
         settings.rabbitmq_user,
-        settings.rabbitmq_password,
+        settings.rabbitmq_password.get_secret_value(),
     )
     return pika.ConnectionParameters(
         host=settings.rabbitmq_host,
