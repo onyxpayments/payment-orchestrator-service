@@ -28,7 +28,7 @@ class Customer:
 class Transaction:
     id: UUID
     amount: Decimal
-    currency: str | None
+    currency: str
     status: PaymentStatus
     customer: Customer
     provider_transaction_id: str | None = None

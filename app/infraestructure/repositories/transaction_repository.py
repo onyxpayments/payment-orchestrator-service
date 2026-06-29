@@ -14,7 +14,9 @@ class PostgresTransactionRepository:
                 SELECT
                     id,
                     amount,
+                    currency,
                     status,
+                    provider_transaction_id,
                     customer_first_name,
                     customer_last_name,
                     customer_personal_id
@@ -31,8 +33,9 @@ class PostgresTransactionRepository:
         return Transaction(
             id=row["id"],
             amount=row["amount"],
-            currency=None,
+            currency=row["currency"],
             status=PaymentStatus(row["status"]),
+            provider_transaction_id=row["provider_transaction_id"],
             customer=Customer(
                 first_name=row["customer_first_name"],
                 last_name=row["customer_last_name"],
@@ -45,7 +48,9 @@ class PostgresTransactionRepository:
             INSERT INTO transactions (
                 id,
                 amount,
+                currency,
                 status,
+                provider_transaction_id,
                 customer_first_name,
                 customer_last_name,
                 customer_personal_id
@@ -53,7 +58,9 @@ class PostgresTransactionRepository:
             VALUES (
                 %(id)s,
                 %(amount)s,
+                %(currency)s,
                 %(status)s,
+                %(provider_transaction_id)s,
                 %(customer_first_name)s,
                 %(customer_last_name)s,
                 %(customer_personal_id)s
@@ -63,7 +70,9 @@ class PostgresTransactionRepository:
         params = {
             "id": transaction.id,
             "amount": transaction.amount,
+            "currency": transaction.currency,
             "status": transaction.status.value,
+            "provider_transaction_id": transaction.provider_transaction_id,
             "customer_first_name": transaction.customer.first_name,
             "customer_last_name": transaction.customer.last_name,
             "customer_personal_id": transaction.customer.personal_id,
@@ -78,8 +87,13 @@ class PostgresTransactionRepository:
                 """
                 UPDATE transactions
                 SET status = %s,
+                    provider_transaction_id = %s,
                     updated_at = NOW()
                 WHERE id = %s;
                 """,
-                (transaction.status.value, transaction.id),
+                (
+                    transaction.status.value,
+                    transaction.provider_transaction_id,
+                    transaction.id,
+                ),
             )

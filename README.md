@@ -162,8 +162,29 @@ DATABASE_URL=postgresql://postgres:postgres@localhost:5433/orchestrator_db
 BANK_SERVICE_URL=http://localhost:8001
 ```
 
-The database schema is created by the SQL initialization scripts in the
-infrastructure repository.
+The infrastructure repository bootstraps PostgreSQL for local development.
+Alembic migrations in this service are the source of truth for schema changes.
+
+## Database migrations
+
+The orchestrator owns its PostgreSQL schema through Alembic. Apply pending
+migrations before starting a new application version:
+
+```bash
+make migrate
+```
+
+The first migration adopts databases created by the legacy infrastructure SQL
+script and also supports an empty database. Existing rows without a currency
+are migrated to `COP`, because the previous schema did not persist that value.
+
+Run the repository round-trip integration test against a migrated test
+database:
+
+```bash
+TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5433/orchestrator_db \
+  make test-integration
+```
 
 ## Running the Full Platform
 
