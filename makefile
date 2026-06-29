@@ -9,8 +9,8 @@ format:
 	.venv/bin/black .
 
 lint:
-	.venv/bin/black --check app adapters migrations tests
-	.venv/bin/flake8 app adapters migrations tests
+	.venv/bin/black --check app config migrations tests
+	.venv/bin/flake8 app config migrations tests
 
 test:
 	.venv/bin/pytest -vv
