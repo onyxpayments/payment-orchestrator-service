@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 
-from adapters.inbound.http.health import router as health_router
-from adapters.inbound.http.routes import router
+from app.adapters.inbound.http.health import router as health_router
+from app.adapters.inbound.http.routes import router
 
 app = FastAPI(title="OnyxPay Payment Orchestrator Service")
 

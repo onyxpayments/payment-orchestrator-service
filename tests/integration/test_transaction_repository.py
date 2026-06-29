@@ -7,7 +7,7 @@ import pytest
 from psycopg.rows import dict_row
 
 from app.domain.models import Customer, PaymentStatus, Transaction
-from app.infraestructure.repositories.transaction_repository import (
+from app.infrastructure.repositories.transaction_repository import (
     PostgresTransactionRepository,
 )
 

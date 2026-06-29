@@ -2,8 +2,8 @@ from app.application.use_cases.process_payment import ProcessPaymentUseCase
 from app.application.use_cases.process_provider_callback import (
     ProcessProviderCallbackUseCase,
 )
-from app.infraestructure.db.unit_of_work import PostgresUnitOfWork
-from app.infraestructure.gateways.mock_bank_gateway import MockBankGateway
+from app.infrastructure.db.unit_of_work import PostgresUnitOfWork
+from app.infrastructure.gateways.mock_bank_gateway import MockBankGateway
 
 
 def get_process_payment_use_case() -> ProcessPaymentUseCase:

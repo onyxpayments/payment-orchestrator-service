@@ -19,6 +19,12 @@ class ProcessPaymentUseCase:
 
     def execute(self, command: ProcessPaymentCommand) -> ProcessPaymentResult:
         with self.uow:
+            if self.uow.inbox.contains(command.event_id):
+                transaction = self.uow.transactions.get(command.payment_id)
+                if transaction is None:
+                    raise RuntimeError("Processed event has no associated transaction")
+                return self._result(transaction)
+
             transaction = self.uow.transactions.get(command.payment_id)
 
             if transaction is None:
@@ -32,18 +38,20 @@ class ProcessPaymentUseCase:
                 self.uow.transactions.add(transaction)
                 self.uow.commit()
 
+        authorization = None
         if transaction.requires_authorization():
             authorization = self.payment_provider.authorize(
                 transaction,
                 idempotency_key=str(transaction.id),
             )
 
-            with self.uow:
-                transactions = self.uow.transactions
-                transaction = transactions.get_for_update(command.payment_id)
-                if transaction is None:
-                    raise RuntimeError("Transaction not found after creation")
+        with self.uow:
+            transactions = self.uow.transactions
+            transaction = transactions.get_for_update(command.payment_id)
+            if transaction is None:
+                raise RuntimeError("Transaction not found after creation")
 
+            if authorization is not None:
                 previous_status = transaction.status
                 provider_id = authorization.provider_transaction_id
                 changed = transaction.apply_authorization(
@@ -60,8 +68,16 @@ class ProcessPaymentUseCase:
                         transaction.id,
                         previous_status,
                     )
-                self.uow.commit()
+            self.uow.inbox.add(
+                event_id=command.event_id,
+                event_type="payment.requested",
+            )
+            self.uow.commit()
 
+        return self._result(transaction)
+
+    @staticmethod
+    def _result(transaction: Transaction) -> ProcessPaymentResult:
         return ProcessPaymentResult(
             transaction_id=transaction.id,
             provider_transaction_id=transaction.provider_transaction_id,

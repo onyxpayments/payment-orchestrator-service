@@ -24,8 +24,15 @@ class TransactionRepository(Protocol):
     def update(self, transaction: Transaction) -> None: ...
 
 
+class InboxRepository(Protocol):
+    def contains(self, event_id: UUID) -> bool: ...
+
+    def add(self, event_id: UUID, event_type: str) -> None: ...
+
+
 class UnitOfWork(Protocol):
     transactions: TransactionRepository
+    inbox: InboxRepository
 
     def __enter__(self) -> "UnitOfWork": ...
 

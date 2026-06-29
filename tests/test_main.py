@@ -83,7 +83,7 @@ def test_startup_returns_started():
 
 
 @patch(
-    "adapters.inbound.http.health.database_is_ready",
+    "app.adapters.inbound.http.health.database_is_ready",
     return_value=True,
 )
 def test_readiness_returns_ready_when_database_is_ready(_mock_ready):
@@ -97,7 +97,7 @@ def test_readiness_returns_ready_when_database_is_ready(_mock_ready):
 
 
 @patch(
-    "adapters.inbound.http.health.database_is_ready",
+    "app.adapters.inbound.http.health.database_is_ready",
     return_value=False,
 )
 def test_readiness_returns_503_when_database_is_unavailable(_mock_ready):

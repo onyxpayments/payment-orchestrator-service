@@ -2,7 +2,7 @@ from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, status
 
-from adapters.inbound.http import schemas
+from app.adapters.inbound.http import schemas
 from app.bootstrap import (
     get_process_payment_use_case,
     get_process_provider_callback_use_case,

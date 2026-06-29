@@ -3,7 +3,7 @@ import logging
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 
-from app.infraestructure.db.connection import get_connection
+from app.infrastructure.db.connection import get_connection
 
 logger = logging.getLogger(__name__)
 

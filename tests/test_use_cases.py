@@ -16,7 +16,9 @@ from app.domain.models import Customer, PaymentStatus, Transaction
 class FakeUnitOfWork:
     def __init__(self):
         self.transactions = self
+        self.inbox = self
         self.saved = {}
+        self.processed_events = set()
         self.commits = 0
 
     def __enter__(self):
@@ -31,11 +33,20 @@ class FakeUnitOfWork:
     def get_for_update(self, transaction_id):
         return self.get(transaction_id)
 
-    def add(self, transaction):
-        self.saved[transaction.id] = transaction
-
     def update(self, transaction):
         self.saved[transaction.id] = transaction
+
+    def contains(self, event_id):
+        return event_id in self.processed_events
+
+    def add(self, item=None, event_type=None, event_id=None):
+        if event_id is not None:
+            self.processed_events.add(event_id)
+            return
+        if isinstance(item, Transaction):
+            self.saved[item.id] = item
+            return
+        self.processed_events.add(item)
 
     def commit(self):
         self.commits += 1
@@ -94,6 +105,32 @@ def test_process_payment_creates_and_authorizes_transaction():
     assert result.provider_transaction_id == f"mock_{payment_id}"
     assert provider.calls[0][1] == str(payment_id)
     assert unit_of_work.commits == 2
+
+
+def test_process_payment_does_not_repeat_processed_event():
+    unit_of_work = FakeUnitOfWork()
+    provider = FakePaymentProvider()
+    use_case = ProcessPaymentUseCase(unit_of_work, provider)
+    event_id = uuid4()
+    payment_id = uuid4()
+    command = ProcessPaymentCommand(
+        event_id=event_id,
+        payment_id=payment_id,
+        amount=Decimal("10000"),
+        currency="COP",
+        customer=Customer(
+            first_name="Juan",
+            last_name="Bello",
+            personal_id="123456789",
+        ),
+    )
+
+    first_result = use_case.execute(command)
+    second_result = use_case.execute(command)
+
+    assert first_result == second_result
+    assert len(provider.calls) == 1
+    assert event_id in unit_of_work.processed_events
 
 
 def test_process_payment_does_not_regress_after_early_callback():

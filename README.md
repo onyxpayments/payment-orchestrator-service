@@ -292,12 +292,36 @@ ghcr.io/onyxpayments/payment-orchestrator-service:latest
 ghcr.io/onyxpayments/payment-orchestrator-service:<commit-sha>
 ```
 
+## RabbitMQ worker
+
+`PaymentRequested` events are consumed by a separate process:
+
+```bash
+python -m app.worker
+```
+
+The worker consumes `orchestrator.payment-requested.q` with manual
+acknowledgements and `prefetch_count=1`. A message is acknowledged only after
+`ProcessPaymentUseCase` returns and its database transaction has committed.
+Failed messages are retried through
+`orchestrator.payment-requested.retry.q`; after the configured retry limit they
+are moved to `orchestrator.payment-requested.dlq`. Invalid messages go directly
+to the dead-letter queue.
+
+Processed event IDs are stored in the `processed_events` inbox table, making
+redeliveries idempotent.
+
+Run database migrations before starting the API or worker:
+
+```bash
+alembic upgrade head
+```
+
 ## Current Limitations
 
 - Only the Mock Bank provider is integrated.
 - Provider requests are synchronous; only the final callback is asynchronous.
-- The RabbitMQ adapter is not implemented yet.
-- Callback authentication, idempotency, and retry handling are not implemented.
+- Callback authentication is not implemented.
 
 ## Health probes
 
@@ -305,3 +329,4 @@ ghcr.io/onyxpayments/payment-orchestrator-service:<commit-sha>
 - `GET /health/startup` confirms application startup completed.
 - `GET /health/ready` runs `SELECT 1` against PostgreSQL.
 - `GET /health` remains available for backward compatibility.
+- The worker container checks both PostgreSQL and RabbitMQ readiness.
