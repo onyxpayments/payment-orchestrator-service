@@ -48,6 +48,6 @@ def test_transaction_round_trip_preserves_the_aggregate():
         )
         repository.update(loaded)
 
-        assert repository.get(transaction.id) == loaded
+        assert repository.get_for_update(transaction.id) == loaded
 
         connection.rollback()

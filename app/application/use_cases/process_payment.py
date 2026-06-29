@@ -1,7 +1,11 @@
+import logging
+
 from app.application.commands import ProcessPaymentCommand
 from app.application.ports import PaymentProvider, UnitOfWork
 from app.application.results import ProcessPaymentResult
 from app.domain.models import Transaction
+
+logger = logging.getLogger(__name__)
 
 
 class ProcessPaymentUseCase:
@@ -35,16 +39,27 @@ class ProcessPaymentUseCase:
             )
 
             with self.uow:
-                transaction = self.uow.transactions.get(command.payment_id)
+                transactions = self.uow.transactions
+                transaction = transactions.get_for_update(command.payment_id)
                 if transaction is None:
                     raise RuntimeError("Transaction not found after creation")
 
+                previous_status = transaction.status
                 provider_id = authorization.provider_transaction_id
-                transaction.apply_authorization(
+                changed = transaction.apply_authorization(
                     provider_transaction_id=provider_id,
                     new_status=authorization.status,
                 )
-                self.uow.transactions.update(transaction)
+                if changed:
+                    transactions.update(transaction)
+                elif previous_status != authorization.status:
+                    logger.info(
+                        "Ignored stale provider status %s for payment %s "
+                        "already in %s",
+                        authorization.status,
+                        transaction.id,
+                        previous_status,
+                    )
                 self.uow.commit()
 
         return ProcessPaymentResult(

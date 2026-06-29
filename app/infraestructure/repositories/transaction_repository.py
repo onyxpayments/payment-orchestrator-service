@@ -8,23 +8,37 @@ class PostgresTransactionRepository:
         self.connection = connection
 
     def get(self, transaction_id: UUID) -> Transaction | None:
+        return self._get(transaction_id, for_update=False)
+
+    def get_for_update(
+        self,
+        transaction_id: UUID,
+    ) -> Transaction | None:
+        return self._get(transaction_id, for_update=True)
+
+    def _get(
+        self,
+        transaction_id: UUID,
+        *,
+        for_update: bool,
+    ) -> Transaction | None:
+        lock_clause = " FOR UPDATE" if for_update else ""
+        query = """
+            SELECT
+                id,
+                amount,
+                currency,
+                status,
+                provider_transaction_id,
+                customer_first_name,
+                customer_last_name,
+                customer_personal_id
+            FROM transactions
+            WHERE id = %s
+            """ + lock_clause + ";"
+
         with self.connection.cursor() as cursor:
-            cursor.execute(
-                """
-                SELECT
-                    id,
-                    amount,
-                    currency,
-                    status,
-                    provider_transaction_id,
-                    customer_first_name,
-                    customer_last_name,
-                    customer_personal_id
-                FROM transactions
-                WHERE id = %s;
-                """,
-                (transaction_id,),
-            )
+            cursor.execute(query, (transaction_id,))
             row = cursor.fetchone()
 
         if row is None:

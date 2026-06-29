@@ -296,6 +296,12 @@ ghcr.io/onyxpayments/payment-orchestrator-service:<commit-sha>
 
 - Only the Mock Bank provider is integrated.
 - Provider requests are synchronous; only the final callback is asynchronous.
-- Currency and provider identifiers are not yet persisted.
-- Messaging and domain port modules are placeholders.
+- The RabbitMQ adapter is not implemented yet.
 - Callback authentication, idempotency, and retry handling are not implemented.
+
+## Health probes
+
+- `GET /health/live` checks that the API process can respond.
+- `GET /health/startup` confirms application startup completed.
+- `GET /health/ready` runs `SELECT 1` against PostgreSQL.
+- `GET /health` remains available for backward compatibility.

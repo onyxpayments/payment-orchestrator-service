@@ -20,14 +20,6 @@ from app.domain.models import Customer
 router = APIRouter()
 
 
-@router.get(
-    "/health",
-    response_model=schemas.HealthResponse,
-)
-def health() -> schemas.HealthResponse:
-    return schemas.HealthResponse(status="ok")
-
-
 @router.post(
     "/transactions",
     response_model=schemas.TransactionResponse,

@@ -1,4 +1,5 @@
 from fastapi.testclient import TestClient
+from unittest.mock import patch
 
 from app.application.results import (
     ProcessPaymentResult,
@@ -65,6 +66,48 @@ def test_health_returns_ok():
 
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
+
+
+def test_liveness_returns_alive():
+    response = client.get("/health/live")
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "alive"}
+
+
+def test_startup_returns_started():
+    response = client.get("/health/startup")
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "started"}
+
+
+@patch(
+    "adapters.inbound.http.health.database_is_ready",
+    return_value=True,
+)
+def test_readiness_returns_ready_when_database_is_ready(_mock_ready):
+    response = client.get("/health/ready")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "status": "ready",
+        "checks": {"database": "up"},
+    }
+
+
+@patch(
+    "adapters.inbound.http.health.database_is_ready",
+    return_value=False,
+)
+def test_readiness_returns_503_when_database_is_unavailable(_mock_ready):
+    response = client.get("/health/ready")
+
+    assert response.status_code == 503
+    assert response.json() == {
+        "status": "not_ready",
+        "checks": {"database": "down"},
+    }
 
 
 def test_mock_bank_callback_returns_received():

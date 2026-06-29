@@ -28,6 +28,9 @@ class FakeUnitOfWork:
     def get(self, transaction_id):
         return self.saved.get(transaction_id)
 
+    def get_for_update(self, transaction_id):
+        return self.get(transaction_id)
+
     def add(self, transaction):
         self.saved[transaction.id] = transaction
 
@@ -44,6 +47,22 @@ class FakePaymentProvider:
 
     def authorize(self, transaction, idempotency_key):
         self.calls.append((transaction, idempotency_key))
+        return AuthorizationResult(
+            provider_transaction_id=f"mock_{transaction.id}",
+            status=PaymentStatus.PENDING,
+        )
+
+
+class CallbackBeforePendingProvider:
+    def __init__(self, unit_of_work):
+        self.unit_of_work = unit_of_work
+
+    def authorize(self, transaction, idempotency_key):
+        stored = self.unit_of_work.saved[transaction.id]
+        stored.apply_provider_callback(
+            provider_transaction_id=f"mock_{transaction.id}",
+            new_status=PaymentStatus.APPROVED,
+        )
         return AuthorizationResult(
             provider_transaction_id=f"mock_{transaction.id}",
             status=PaymentStatus.PENDING,
@@ -75,6 +94,30 @@ def test_process_payment_creates_and_authorizes_transaction():
     assert result.provider_transaction_id == f"mock_{payment_id}"
     assert provider.calls[0][1] == str(payment_id)
     assert unit_of_work.commits == 2
+
+
+def test_process_payment_does_not_regress_after_early_callback():
+    unit_of_work = FakeUnitOfWork()
+    provider = CallbackBeforePendingProvider(unit_of_work)
+    use_case = ProcessPaymentUseCase(unit_of_work, provider)
+    payment_id = uuid4()
+
+    result = use_case.execute(
+        ProcessPaymentCommand(
+            event_id=uuid4(),
+            payment_id=payment_id,
+            amount=Decimal("10000"),
+            currency="COP",
+            customer=Customer(
+                first_name="Juan",
+                last_name="Bello",
+                personal_id="123456789",
+            ),
+        )
+    )
+
+    assert result.status == PaymentStatus.APPROVED
+    assert unit_of_work.saved[payment_id].status == PaymentStatus.APPROVED
 
 
 def test_provider_callback_updates_pending_transaction():
