@@ -24,6 +24,7 @@ def test_transaction_round_trip_preserves_the_aggregate():
         transaction_id=uuid4(),
         amount=Decimal("12345.67"),
         currency="COP",
+        notification_url="https://merchant.example/webhooks/payments",
         customer=Customer(
             first_name="Integration",
             last_name="Test",

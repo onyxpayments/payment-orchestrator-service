@@ -32,6 +32,7 @@ class ProcessPaymentUseCase:
                     transaction_id=command.payment_id,
                     amount=command.amount,
                     currency=command.currency,
+                    notification_url=command.notification_url,
                     customer=command.customer,
                 )
 

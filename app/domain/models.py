@@ -47,6 +47,7 @@ class Transaction:
     id: UUID
     amount: Decimal
     currency: str
+    notification_url: str
     status: PaymentStatus
     customer: Customer
     provider_transaction_id: str | None = None
@@ -57,12 +58,14 @@ class Transaction:
         transaction_id: UUID,
         amount: Decimal,
         currency: str,
+        notification_url: str,
         customer: Customer,
     ) -> "Transaction":
         return cls(
             id=transaction_id,
             amount=amount,
             currency=currency,
+            notification_url=notification_url,
             customer=customer,
             status=PaymentStatus.NEW,
         )

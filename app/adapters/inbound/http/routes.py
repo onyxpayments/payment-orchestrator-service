@@ -34,6 +34,7 @@ def create_transaction(
         payment_id=request.transaction_id,
         amount=request.amount,
         currency=request.currency,
+        notification_url=str(request.notification_url),
         customer=Customer(
             first_name=request.customer.first_name,
             last_name=request.customer.last_name,

@@ -18,6 +18,7 @@ def transaction_with_status(status: PaymentStatus) -> Transaction:
         id=transaction_id,
         amount=Decimal("10000"),
         currency="COP",
+        notification_url="https://merchant.example/webhooks/payments",
         status=status,
         customer=Customer(
             first_name="Juan",

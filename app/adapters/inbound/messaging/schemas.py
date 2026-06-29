@@ -3,7 +3,7 @@ from decimal import Decimal
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl, model_validator
 
 from app.application.commands import ProcessPaymentCommand
 from app.domain.models import Customer
@@ -28,6 +28,7 @@ class PaymentRequestedMessage(MessageSchema):
     payment_id: UUID
     amount: Decimal = Field(gt=0)
     currency: str = Field(pattern=r"^[A-Z]{3}$")
+    notification_url: HttpUrl
     customer: PaymentRequestedCustomer
 
     @model_validator(mode="after")
@@ -42,6 +43,7 @@ class PaymentRequestedMessage(MessageSchema):
             payment_id=self.payment_id,
             amount=self.amount,
             currency=self.currency,
+            notification_url=str(self.notification_url),
             customer=Customer(
                 first_name=self.customer.first_name,
                 last_name=self.customer.last_name,

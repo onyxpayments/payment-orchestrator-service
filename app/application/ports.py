@@ -3,6 +3,7 @@ from typing import Protocol
 from uuid import UUID
 
 from app.domain.models import PaymentStatus, Transaction
+from app.application.events import PaymentNotificationRequested
 
 
 @dataclass(frozen=True)
@@ -47,3 +48,10 @@ class PaymentProvider(Protocol):
         transaction: Transaction,
         idempotency_key: str,
     ) -> AuthorizationResult: ...
+
+
+class NotificationPublisher(Protocol):
+    def publish_payment_notification(
+        self,
+        event: PaymentNotificationRequested,
+    ) -> None: ...

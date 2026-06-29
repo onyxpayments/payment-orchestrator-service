@@ -1,7 +1,8 @@
 import logging
 
 from app.application.commands import ProcessProviderCallbackCommand
-from app.application.ports import UnitOfWork
+from app.application.events import PaymentNotificationRequested
+from app.application.ports import NotificationPublisher, UnitOfWork
 from app.application.results import ProcessProviderCallbackResult
 from app.domain.models import PaymentStatus
 
@@ -13,8 +14,13 @@ class TransactionNotFound(LookupError):
 
 
 class ProcessProviderCallbackUseCase:
-    def __init__(self, unit_of_work: UnitOfWork):
+    def __init__(
+        self,
+        unit_of_work: UnitOfWork,
+        notification_publisher: NotificationPublisher,
+    ):
         self.uow = unit_of_work
+        self.notification_publisher = notification_publisher
 
     def execute(
         self,
@@ -44,6 +50,12 @@ class ProcessProviderCallbackUseCase:
                 )
 
             self.uow.commit()
+
+        event = PaymentNotificationRequested.from_transaction(
+            transaction,
+            command.message,
+        )
+        self.notification_publisher.publish_payment_notification(event)
 
         return ProcessProviderCallbackResult(
             transaction_id=transaction.id,

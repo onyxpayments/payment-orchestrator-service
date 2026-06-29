@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     rabbitmq_exchange: str = "payment.events"
     rabbitmq_payment_requested_queue: str = "orchestrator.payment-requested.q"
     rabbitmq_payment_requested_routing_key: str = "payment.requested.v1"
+    rabbitmq_notification_queue: str = "webhook.payment-notifications.q"
+    rabbitmq_notification_routing_key: str = "payment.notification.requested.v1"
     rabbitmq_retry_exchange: str = "payment.retry"
     rabbitmq_payment_requested_retry_queue: str = (
         "orchestrator.payment-requested.retry.q"

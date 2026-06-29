@@ -80,6 +80,14 @@ class CallbackBeforePendingProvider:
         )
 
 
+class RecordingNotificationPublisher:
+    def __init__(self):
+        self.events = []
+
+    def publish_payment_notification(self, event):
+        self.events.append(event)
+
+
 def test_process_payment_creates_and_authorizes_transaction():
     unit_of_work = FakeUnitOfWork()
     provider = FakePaymentProvider()
@@ -92,6 +100,7 @@ def test_process_payment_creates_and_authorizes_transaction():
             payment_id=payment_id,
             amount=Decimal("10000"),
             currency="COP",
+            notification_url="https://merchant.example/webhooks/payments",
             customer=Customer(
                 first_name="Juan",
                 last_name="Bello",
@@ -118,6 +127,7 @@ def test_process_payment_does_not_repeat_processed_event():
         payment_id=payment_id,
         amount=Decimal("10000"),
         currency="COP",
+        notification_url="https://merchant.example/webhooks/payments",
         customer=Customer(
             first_name="Juan",
             last_name="Bello",
@@ -145,6 +155,7 @@ def test_process_payment_does_not_regress_after_early_callback():
             payment_id=payment_id,
             amount=Decimal("10000"),
             currency="COP",
+            notification_url="https://merchant.example/webhooks/payments",
             customer=Customer(
                 first_name="Juan",
                 last_name="Bello",
@@ -164,6 +175,7 @@ def test_provider_callback_updates_pending_transaction():
         id=payment_id,
         amount=Decimal("10000"),
         currency="COP",
+        notification_url="https://merchant.example/webhooks/payments",
         customer=Customer(
             first_name="Juan",
             last_name="Bello",
@@ -172,7 +184,8 @@ def test_provider_callback_updates_pending_transaction():
         status=PaymentStatus.PENDING,
         provider_transaction_id=f"mock_{payment_id}",
     )
-    use_case = ProcessProviderCallbackUseCase(unit_of_work)
+    publisher = RecordingNotificationPublisher()
+    use_case = ProcessProviderCallbackUseCase(unit_of_work, publisher)
 
     result = use_case.execute(
         ProcessProviderCallbackCommand(
@@ -186,3 +199,7 @@ def test_provider_callback_updates_pending_transaction():
     assert result.status == PaymentStatus.APPROVED
     assert unit_of_work.saved[payment_id].status == PaymentStatus.APPROVED
     assert unit_of_work.commits == 1
+    assert len(publisher.events) == 1
+    assert publisher.events[0].notification_url == (
+        "https://merchant.example/webhooks/payments"
+    )

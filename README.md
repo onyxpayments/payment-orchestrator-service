@@ -1,74 +1,71 @@
-# OnyxPay Payment Orchestrator
+# OnyxPay Payment Orchestrator Service
 
-Core transaction coordination service for the OnyxPay payment platform.
+Transaction owner and payment coordination service for OnyxPay.
 
-The orchestrator owns transaction persistence and coordinates communication
-with payment providers. In the current development flow, it stores a pending
-transaction in PostgreSQL, requests authorization from the Mock Bank, and
-updates the transaction again when the provider sends an asynchronous callback.
+The service consumes `payment.requested` events, persists transactions in
+PostgreSQL, calls the Mock Bank, receives asynchronous provider callbacks, and
+publishes webhook delivery events to RabbitMQ.
 
 ## Responsibilities
 
-- Create and persist payment transactions.
-- Generate the platform transaction identifier.
-- Send authorization requests to the configured bank provider.
-- Store the provider's immediate payment status.
-- Receive asynchronous provider callbacks.
-- Update the final transaction status.
-- Keep HTTP, application, domain, and infrastructure concerns separated.
+- Consume and validate versioned payment request events.
+- Persist the transaction and its required `notification_url`.
+- Authorize new transactions with the Mock Bank.
+- Handle immediate and out-of-order provider statuses safely.
+- Receive and persist asynchronous Mock Bank callbacks.
+- Publish `payment.notification_requested` events for the Webhook Service.
+- Deduplicate redelivered payment requests through a PostgreSQL inbox.
+- Retry transient consumer failures and dead-letter exhausted messages.
 
-## Payment Flow
+## End-to-end flow
 
 ```text
-API Gateway
-    │
-    │ POST /transactions
+Payment Request Service
+    │ payment.requested.v1
     ▼
-Payment Orchestrator ──────► PostgreSQL
+RabbitMQ: orchestrator.payment-requested.q
     │
+    ▼
+Orchestrator Worker ───────────────► PostgreSQL
     │ POST /authorize
     ▼
 Mock Bank
-    │
-    │ PENDING immediately
-    │ APPROVED callback after 5 seconds
+    │ PENDING response
+    │ asynchronous callback
     ▼
-Payment Orchestrator ──────► PostgreSQL
+Orchestrator API ──────────────────► PostgreSQL
+    │ payment.notification.requested.v1
+    ▼
+RabbitMQ: webhook.payment-notifications.q
+    │
+    ▼
+Webhook Service
 ```
 
-## API
+The API and RabbitMQ worker run as separate processes from the same image.
+Alembic migrations run as a third one-shot Compose service.
 
-When the full platform is running through Docker Compose, the orchestrator is
-available at `http://localhost:8002`.
+## HTTP API
 
-### Health Check
+With the full stack running, the API is available at
+`http://localhost:8002`; the container listens on port `8001`.
 
-```http
-GET /health
-```
+### Create a transaction directly
 
-Response:
-
-```json
-{
-  "status": "ok"
-}
-```
-
-### Create Transaction
+This endpoint is useful for development. Normal platform traffic reaches the
+same use case through RabbitMQ.
 
 ```http
 POST /transactions
 Content-Type: application/json
 ```
 
-Request:
-
 ```json
 {
   "transaction_id": "123e4567-e89b-12d3-a456-426614174000",
-  "amount": 10000,
+  "amount": "10000.50",
   "currency": "COP",
+  "notification_url": "https://merchant.example/webhooks/payments",
   "customer": {
     "first_name": "Juan",
     "last_name": "Bello",
@@ -77,50 +74,32 @@ Request:
 }
 ```
 
-Example:
+`notification_url` is required and must be a valid HTTP or HTTPS URL.
+Currency values are normalized to uppercase.
 
-```bash
-curl -X POST http://localhost:8002/transactions \
-  -H "Content-Type: application/json" \
-  -d '{
-    "transaction_id": "123e4567-e89b-12d3-a456-426614174000",
-    "amount": 10000,
-    "currency": "COP",
-    "customer": {
-      "first_name": "Juan",
-      "last_name": "Bello",
-      "personal_id": "123456789"
-    }
-  }'
-```
-
-Immediate response:
+Response:
 
 ```json
 {
-  "transaction_id": "9d03c06f-66b6-4495-82a7-e2fa41d740e4",
-  "provider_transaction_id": "mock_9d03c06f-66b6-4495-82a7-e2fa41d740e4",
+  "transaction_id": "123e4567-e89b-12d3-a456-426614174000",
+  "provider_transaction_id": "mock_123e4567-e89b-12d3-a456-426614174000",
   "status": "PENDING"
 }
 ```
 
-The service creates a PostgreSQL UUID and uses it for all provider
-communication. The request's `transaction_id` field is currently replaced by
-the persisted identifier.
+The client-provided transaction identifier remains the identifier used across
+the platform.
 
-### Receive Mock Bank Callback
+### Receive a Mock Bank callback
 
 ```http
 POST /provider-callbacks/mock-bank/{transaction_id}
 Content-Type: application/json
 ```
 
-Request:
-
 ```json
 {
-  "transaction_id": "9d03c06f-66b6-4495-82a7-e2fa41d740e4",
-  "provider_transaction_id": "mock_9d03c06f-66b6-4495-82a7-e2fa41d740e4",
+  "provider_transaction_id": "mock_123e4567-e89b-12d3-a456-426614174000",
   "status": "APPROVED",
   "message": "Mock bank payment approved asynchronously"
 }
@@ -130,92 +109,127 @@ Response:
 
 ```json
 {
-  "message": "Callback received"
+  "transaction_id": "123e4567-e89b-12d3-a456-426614174000",
+  "status": "APPROVED"
 }
 ```
 
-### Provider Connectivity Test
+After committing the status, the API publishes a persistent notification event
+with publisher confirms enabled. Its deterministic event ID is derived from
+the transaction ID and status, giving duplicate callbacks the same
+idempotency key.
 
-`POST /process-payment-test` forwards the supplied authorization payload
-directly to the Mock Bank. It is a development-only endpoint and does not
-persist a transaction.
+Interactive OpenAPI documentation is available at
+`http://localhost:8002/docs`.
 
-Interactive API documentation:
+## RabbitMQ contracts
 
-```text
-http://localhost:8002/docs
-```
+### Consumed event
 
-## Configuration
+| Property | Value |
+| --- | --- |
+| Exchange | `payment.events` |
+| Routing key | `payment.requested.v1` |
+| Queue | `orchestrator.payment-requested.q` |
+| Event type | `payment.requested` |
+| Schema version | `1` |
 
-The service requires the following environment variables:
+The event includes `event_id`, timestamps, correlation and payment IDs,
+amount, currency, required `notification_url`, and customer identity.
 
-| Variable | Description | Compose example |
+The worker uses manual acknowledgements and `prefetch_count=1`. It acknowledges
+only after processing succeeds and the database transaction commits.
+
+### Published notification event
+
+| Property | Value |
+| --- | --- |
+| Exchange | `payment.events` |
+| Routing key | `payment.notification.requested.v1` |
+| Queue | `webhook.payment-notifications.q` |
+| Event type | `payment.notification_requested` |
+| Schema version | `1` |
+
+The event contains the destination URL, transaction and provider IDs, final
+status, provider message, timestamp, correlation ID, and deterministic event
+ID.
+
+### Payment request retries
+
+| Purpose | Exchange | Queue / routing key |
 | --- | --- | --- |
-| `DATABASE_URL` | PostgreSQL connection string | `postgresql://postgres:postgres@orchestrator-db:5432/orchestrator_db` |
-| `BANK_SERVICE_URL` | Payment provider base URL | `http://mock-bank-service:8000` |
+| Retry | `payment.retry` | `orchestrator.payment-requested.retry.q` / `payment.requested.retry` |
+| Dead letter | `payment.dead-letter` | `orchestrator.payment-requested.dlq` / `payment.requested.failed` |
 
-For local development, create a `.env` file:
+Retry messages wait for `RABBITMQ_RETRY_DELAY_MS` and are attempted up to
+`RABBITMQ_MAX_RETRIES`. Invalid messages go directly to the dead-letter queue.
 
-```dotenv
-DATABASE_URL=postgresql://postgres:postgres@localhost:5433/orchestrator_db
-BANK_SERVICE_URL=http://localhost:8001
-```
+## Persistence and migrations
 
-The infrastructure repository bootstraps PostgreSQL for local development.
-Alembic migrations in this service are the source of truth for schema changes.
+The orchestrator owns the `transactions` and `processed_events` tables.
+`notification_url` is non-nullable in the current schema.
 
-## Database migrations
-
-The orchestrator owns its PostgreSQL schema through Alembic. Apply pending
-migrations before starting a new application version:
+Apply migrations before starting either process:
 
 ```bash
 make migrate
 ```
 
-The first migration adopts databases created by the legacy infrastructure SQL
-script and also supports an empty database. Existing rows without a currency
-are migrated to `COP`, because the previous schema did not persist that value.
+Migration `20260628_0003` refuses to make the column non-nullable when legacy
+transactions still have an empty or null URL. Clean those rows before
+deployment.
 
-Run the repository round-trip integration test against a migrated test
-database:
+Run the PostgreSQL repository integration test against a migrated database:
 
 ```bash
-TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5433/orchestrator_db \
+TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5433/transactions_db \
   make test-integration
 ```
 
-## Running the Full Platform
+## Configuration
 
-```bash
-cd ../infra
-docker compose pull
-docker compose up -d
-```
+`DATABASE_URL` and `BANK_SERVICE_URL` are required. All other values have
+defaults.
 
-## Local Development
+| Variable | Default |
+| --- | --- |
+| `RABBITMQ_HOST` | `rabbitmq` |
+| `RABBITMQ_PORT` | `5672` |
+| `RABBITMQ_USER` | `guest` |
+| `RABBITMQ_PASSWORD` | `guest` |
+| `RABBITMQ_VHOST` | `/` |
+| `RABBITMQ_EXCHANGE` | `payment.events` |
+| `RABBITMQ_PAYMENT_REQUESTED_QUEUE` | `orchestrator.payment-requested.q` |
+| `RABBITMQ_PAYMENT_REQUESTED_ROUTING_KEY` | `payment.requested.v1` |
+| `RABBITMQ_NOTIFICATION_QUEUE` | `webhook.payment-notifications.q` |
+| `RABBITMQ_NOTIFICATION_ROUTING_KEY` | `payment.notification.requested.v1` |
+| `RABBITMQ_RETRY_EXCHANGE` | `payment.retry` |
+| `RABBITMQ_PAYMENT_REQUESTED_RETRY_QUEUE` | `orchestrator.payment-requested.retry.q` |
+| `RABBITMQ_PAYMENT_REQUESTED_RETRY_ROUTING_KEY` | `payment.requested.retry` |
+| `RABBITMQ_DEAD_LETTER_EXCHANGE` | `payment.dead-letter` |
+| `RABBITMQ_PAYMENT_REQUESTED_DEAD_LETTER_QUEUE` | `orchestrator.payment-requested.dlq` |
+| `RABBITMQ_PAYMENT_REQUESTED_DEAD_LETTER_ROUTING_KEY` | `payment.requested.failed` |
+| `RABBITMQ_RETRY_DELAY_MS` | `5000` |
+| `RABBITMQ_MAX_RETRIES` | `3` |
+| `RABBITMQ_RECONNECT_DELAY_SECONDS` | `2` |
 
-Requirements:
+## Local development
 
-- Python 3.13
-- PostgreSQL with the OnyxPay transaction schema
-- A reachable bank provider
-- Make
-
-Install dependencies:
+Requirements: Python 3.13, PostgreSQL, RabbitMQ, and a reachable Mock Bank.
 
 ```bash
 make install
-```
-
-Run the service:
-
-```bash
+make migrate
 .venv/bin/uvicorn app.main:app --reload --port 8001
 ```
 
-Run quality checks:
+Run the worker separately:
+
+```bash
+.venv/bin/python -m app.worker
+```
+
+Quality checks:
 
 ```bash
 make format
@@ -223,110 +237,66 @@ make lint
 make test
 ```
 
-## Docker
-
-Build the image:
+## Docker and Compose
 
 ```bash
 make docker-build
 ```
 
-Run it inside a network that can resolve PostgreSQL and the Mock Bank:
-
-```bash
-docker run --rm -p 8002:8001 \
-  -e DATABASE_URL="postgresql://postgres:postgres@host.docker.internal:5433/orchestrator_db" \
-  -e BANK_SERVICE_URL="http://host.docker.internal:8001" \
-  payment-orchestrator-service
-```
-
-Published image:
+The published image is:
 
 ```text
 ghcr.io/onyxpayments/payment-orchestrator-service:latest
 ```
 
-## Architecture
+For the complete API, worker, migration, PostgreSQL, RabbitMQ, Mock Bank, and
+Webhook Service setup, use:
+
+```bash
+cd ../infra
+docker compose pull
+docker compose up -d
+```
+
+## Health checks
+
+- `GET /health/live`: API process liveness.
+- `GET /health/startup`: application startup.
+- `GET /health/ready`: PostgreSQL connectivity through `SELECT 1`.
+- `GET /health`: backward-compatible basic health check.
+- `python -m app.worker_health`: PostgreSQL and RabbitMQ worker readiness.
+
+## Project structure
 
 ```text
 .
 ├── app
-│   ├── api
-│   │   ├── dependencies.py          # Dependency wiring
-│   │   ├── routes.py                # HTTP endpoints
-│   │   └── schemas.py               # Request and response schemas
-│   ├── domain
-│   │   ├── models.py                # Transaction and payment status models
-│   │   └── ports.py                 # Domain port placeholder
-│   ├── use_cases
-│   │   ├── create_transaction.py    # Transaction authorization flow
-│   │   └── receive_callback.py      # Provider callback flow
-│   ├── infraestructure
-│   │   ├── db                       # PostgreSQL connection
-│   │   ├── gateways                 # Mock Bank adapter
-│   │   └── repositories             # PostgreSQL transaction repository
-│   └── main.py
-├── config                            # Environment-based settings
+│   ├── adapters/inbound
+│   │   ├── http                 # API routes, schemas, and health checks
+│   │   └── messaging            # PaymentRequested consumer
+│   ├── application
+│   │   ├── use_cases            # Payment and callback workflows
+│   │   ├── commands.py
+│   │   ├── events.py
+│   │   ├── ports.py
+│   │   └── results.py
+│   ├── domain                   # Transaction aggregate and status rules
+│   ├── infrastructure
+│   │   ├── db                   # PostgreSQL connection and unit of work
+│   │   ├── gateways             # Mock Bank adapter
+│   │   ├── messaging            # RabbitMQ connection and publisher
+│   │   └── repositories         # Transaction and inbox repositories
+│   ├── main.py                  # FastAPI process
+│   ├── worker.py                # RabbitMQ worker process
+│   └── worker_health.py
+├── config/settings.py
+├── migrations
 └── tests
 ```
 
-## Payment Statuses
-
-The domain currently supports:
-
-- `PENDING`
-- `APPROVED`
-- `DECLINED`
-- `ERROR`
-- `EXPIRED`
-
-The database schema additionally defines `NEW`.
-
-## CI/CD
-
-GitHub Actions installs dependencies, checks formatting, runs tests, builds the
-Docker image, and publishes the following tags on pushes to `main`:
-
-```text
-ghcr.io/onyxpayments/payment-orchestrator-service:latest
-ghcr.io/onyxpayments/payment-orchestrator-service:<commit-sha>
-```
-
-## RabbitMQ worker
-
-`PaymentRequested` events are consumed by a separate process:
-
-```bash
-python -m app.worker
-```
-
-The worker consumes `orchestrator.payment-requested.q` with manual
-acknowledgements and `prefetch_count=1`. A message is acknowledged only after
-`ProcessPaymentUseCase` returns and its database transaction has committed.
-Failed messages are retried through
-`orchestrator.payment-requested.retry.q`; after the configured retry limit they
-are moved to `orchestrator.payment-requested.dlq`. Invalid messages go directly
-to the dead-letter queue.
-
-Processed event IDs are stored in the `processed_events` inbox table, making
-redeliveries idempotent.
-
-Run database migrations before starting the API or worker:
-
-```bash
-alembic upgrade head
-```
-
-## Current Limitations
+## Current limitations
 
 - Only the Mock Bank provider is integrated.
-- Provider requests are synchronous; only the final callback is asynchronous.
-- Callback authentication is not implemented.
-
-## Health probes
-
-- `GET /health/live` checks that the API process can respond.
-- `GET /health/startup` confirms application startup completed.
-- `GET /health/ready` runs `SELECT 1` against PostgreSQL.
-- `GET /health` remains available for backward compatibility.
-- The worker container checks both PostgreSQL and RabbitMQ readiness.
+- Provider authorization calls are synchronous.
+- Provider callbacks are not authenticated.
+- Notification publishing is direct rather than transactional-outbox based.

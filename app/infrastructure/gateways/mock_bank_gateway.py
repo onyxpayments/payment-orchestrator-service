@@ -19,6 +19,7 @@ class MockBankGateway:
             "transaction_id": str(transaction.id),
             "amount": str(transaction.amount),
             "currency": transaction.currency,
+            "notification_url": transaction.notification_url,
             "customer": {
                 "first_name": transaction.customer.first_name,
                 "last_name": transaction.customer.last_name,

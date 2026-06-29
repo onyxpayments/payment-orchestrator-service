@@ -46,6 +46,7 @@ def create_body():
                 "payment_id": str(payment_id),
                 "amount": "10000.00",
                 "currency": "COP",
+                "notification_url": "https://merchant.example/webhooks/payments",
                 "customer": {
                     "first_name": "Juan",
                     "last_name": "Bello",

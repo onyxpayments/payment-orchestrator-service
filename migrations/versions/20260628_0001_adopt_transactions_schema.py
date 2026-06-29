@@ -61,6 +61,7 @@ def upgrade() -> None:
             ),
             sa.Column("amount", sa.Numeric(18, 2), nullable=False),
             sa.Column("currency", sa.String(3), nullable=False),
+            sa.Column("notification_url", sa.Text(), nullable=False),
             sa.Column(
                 "status",
                 payment_status,

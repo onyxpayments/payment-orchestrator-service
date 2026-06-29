@@ -42,6 +42,7 @@ def test_create_transaction_returns_approved():
         "transaction_id": transaction_id,
         "amount": 10000,
         "currency": "COP",
+        "notification_url": "https://merchant.example/webhooks/payments",
         "customer": {
             "first_name": "Juan",
             "last_name": "Bello",
